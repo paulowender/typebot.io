@@ -9413,7 +9413,8 @@
                   "qr-code",
                   "dify-ai",
                   "mistral",
-                  "elevenlabs"
+                  "elevenlabs",
+                  "codechat"
                 ]
               },
               "options": {}
