@@ -5,6 +5,7 @@ import { sendTextMessage } from './actions/sendTextMessage'
 import { sendAudioMessage } from './actions/sendAudioMessage'
 import { sendVideoMessage } from './actions/sendVideoMessage'
 import { sendImageMessage } from './actions/sendImageMessage'
+import { sendPollMessage } from './actions/sendPollMessage'
 
 export const codechat = createBlock({
   id: 'codechat',
@@ -17,5 +18,6 @@ export const codechat = createBlock({
     sendAudioMessage,
     sendImageMessage,
     sendVideoMessage,
+    sendPollMessage,
   ],
 })
