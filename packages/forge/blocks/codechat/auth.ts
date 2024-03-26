@@ -13,7 +13,7 @@ export const auth = {
       label: 'API key',
       isRequired: true,
       inputType: 'password',
-      helperText: `You can generate an API key.`,
+      helperText: 'Enter your API key.',
     }),
     baseUrl: option.string.layout({
       label: 'API URL',

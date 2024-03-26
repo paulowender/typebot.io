@@ -11,7 +11,7 @@ export const codechat = createBlock({
   id: 'codechat',
   name: 'CodeChat',
   tags: [],
-  LightLogo: CodechatLogo as any,
+  LightLogo: CodechatLogo,
   auth,
   actions: [
     sendTextMessage,
