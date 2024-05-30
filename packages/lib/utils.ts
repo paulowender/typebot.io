@@ -19,7 +19,7 @@ import { PictureChoiceBlock } from '@typebot.io/schemas/features/blocks/inputs/p
 import { IntegrationBlockType } from '@typebot.io/schemas/features/blocks/integrations/constants'
 import { LogicBlockType } from '@typebot.io/schemas/features/blocks/logic/constants'
 import { defaultChoiceInputOptions } from '@typebot.io/schemas/features/blocks/inputs/choice/constants'
-import { enabledBlocks } from '@typebot.io/forge-repository'
+import { disabledBlocks, enabledBlocks } from '@typebot.io/forge-repository'
 
 export const sendRequest = async <ResponseData>(
   params:
@@ -257,3 +257,7 @@ export const getAtPath = <T>(obj: T, path: string): unknown => {
 
 export const isSvgSrc = (src: string | undefined) =>
   src?.startsWith('data:image/svg') || src?.endsWith('.svg')
+
+export const isEnabledBlock = (
+  type: IntegrationBlockType | LogicBlockType | InputBlockType | BubbleBlockType
+) => !disabledBlocks.includes(type)
