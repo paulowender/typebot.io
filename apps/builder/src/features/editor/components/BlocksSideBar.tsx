@@ -23,7 +23,7 @@ import { InputBlockType } from '@typebot.io/schemas/features/blocks/inputs/const
 import { IntegrationBlockType } from '@typebot.io/schemas/features/blocks/integrations/constants'
 import { LogicBlockType } from '@typebot.io/schemas/features/blocks/logic/constants'
 import { BlockV6 } from '@typebot.io/schemas'
-import { disabledBlocks, enabledBlocks } from '@typebot.io/forge-repository'
+import { enabledBlocks } from '@typebot.io/forge-repository'
 import { useDebouncedCallback } from 'use-debounce'
 import { isEnabledBlock } from '@typebot.io/lib'
 
@@ -88,11 +88,6 @@ export const BlocksSideBar = () => {
     if (isLocked) return
     closeSideBar()
   }
-
-  console.log('IntegrationBlockType', IntegrationBlockType)
-  console.log('enabledBlocks', enabledBlocks)
-  console.log('legacyIntegrationBlocks', legacyIntegrationBlocks)
-  console.log('disabledBlocks', disabledBlocks)
 
   return (
     <Flex
