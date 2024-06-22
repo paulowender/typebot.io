@@ -7,7 +7,7 @@ import { sendVideoMessage } from './actions/sendVideoMessage'
 import { sendImageMessage } from './actions/sendImageMessage'
 import { sendPollMessage } from './actions/sendPollMessage'
 
-export const codechat = createBlock({
+export const codechatBlock = createBlock({
   id: 'codechat',
   name: 'CodeChat',
   tags: [],

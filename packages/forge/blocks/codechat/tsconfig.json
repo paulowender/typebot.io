@@ -13,6 +13,7 @@
       "DOM"
     ],
     "noEmit": true,
-    "jsx": "react"
+    "jsx": "preserve",
+    "jsxImportSource": "react"
   }
 }
