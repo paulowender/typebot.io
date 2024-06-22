@@ -4,19 +4,19 @@ import { useRouter } from 'next/router'
 import { stringify } from 'qs'
 import React from 'react'
 import { useTranslate } from '@tolgee/react'
+import { useTypebotDnd } from '../TypebotDndProvider'
 
 export const CreateBotButton = ({
   folderId,
-  isFirstBot,
   ...props
-}: { folderId?: string; isFirstBot: boolean } & ButtonProps) => {
+}: { folderId?: string } & ButtonProps) => {
   const { t } = useTranslate()
   const router = useRouter()
+  const { draggedTypebot } = useTypebotDnd()
 
   const handleClick = () =>
     router.push(
       `/typebots/create?${stringify({
-        isFirstBot: !isFirstBot ? undefined : isFirstBot,
         folderId,
       })}`
     )
@@ -28,6 +28,7 @@ export const CreateBotButton = ({
       paddingX={6}
       whiteSpace={'normal'}
       colorScheme="blue"
+      opacity={draggedTypebot ? 0.3 : 1}
       {...props}
     >
       <VStack spacing="6">

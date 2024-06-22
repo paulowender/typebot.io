@@ -8,17 +8,28 @@ import { BotContext, InitialChatReply, OutgoingLog } from '@/types'
 import { ErrorMessage } from './ErrorMessage'
 import {
   getExistingResultIdFromStorage,
+  getInitialChatReplyFromStorage,
+  setInitialChatReplyInStorage,
   setResultInStorage,
+  wipeExistingChatStateInStorage,
 } from '@/utils/storage'
 import { setCssVariablesValue } from '@/utils/setCssVariablesValue'
 import immutableCss from '../assets/immutable.css'
-import { Font, InputBlock } from '@typebot.io/schemas'
-import { StartFrom } from '@typebot.io/schemas'
-import { defaultTheme } from '@typebot.io/schemas/features/typebot/theme/constants'
+import { Font, InputBlock, StartFrom } from '@typebot.io/schemas'
 import { clsx } from 'clsx'
 import { HTTPError } from 'ky'
 import { injectFont } from '@/utils/injectFont'
 import { ProgressBar } from './ProgressBar'
+import { Portal } from 'solid-js/web'
+import { defaultSettings } from '@typebot.io/schemas/features/typebot/settings/constants'
+import { persist } from '@/utils/persist'
+import { setBotContainerHeight } from '@/utils/botContainerHeightSignal'
+import {
+  defaultFontFamily,
+  defaultFontType,
+  defaultProgressBarPosition,
+} from '@typebot.io/schemas/features/typebot/theme/constants'
+import { CorsError } from '@/utils/CorsError'
 
 export type BotProps = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -28,12 +39,15 @@ export type BotProps = {
   prefilledVariables?: Record<string, unknown>
   apiHost?: string
   font?: Font
+  progressBarRef?: HTMLDivElement
+  startFrom?: StartFrom
+  sessionId?: string
   onNewInputBlock?: (inputBlock: InputBlock) => void
   onAnswer?: (answer: { message: string; blockId: string }) => void
   onInit?: () => void
   onEnd?: () => void
   onNewLogs?: (logs: OutgoingLog[]) => void
-  startFrom?: StartFrom
+  onChatStatePersisted?: (isEnabled: boolean) => void
 }
 
 export const Bot = (props: BotProps & { class?: string }) => {
@@ -57,19 +71,19 @@ export const Bot = (props: BotProps & { class?: string }) => {
       typeof props.typebot === 'string' ? props.typebot : undefined
     const isPreview =
       typeof props.typebot !== 'string' || (props.isPreview ?? false)
+    const resultIdInStorage = getExistingResultIdFromStorage(typebotIdFromProps)
     const { data, error } = await startChatQuery({
       stripeRedirectStatus: urlParams.get('redirect_status') ?? undefined,
       typebot: props.typebot,
       apiHost: props.apiHost,
       isPreview,
-      resultId: isNotEmpty(props.resultId)
-        ? props.resultId
-        : getExistingResultIdFromStorage(typebotIdFromProps),
+      resultId: isNotEmpty(props.resultId) ? props.resultId : resultIdInStorage,
       prefilledVariables: {
         ...prefilledVariables,
         ...props.prefilledVariables,
       },
       startFrom: props.startFrom,
+      sessionId: props.sessionId,
     })
     if (error instanceof HTTPError) {
       if (isPreview) {
@@ -93,6 +107,10 @@ export const Bot = (props: BotProps & { class?: string }) => {
       )
     }
 
+    if (error instanceof CorsError) {
+      return setError(new Error(error.message))
+    }
+
     if (!data) {
       if (error) {
         console.error(error)
@@ -109,17 +127,41 @@ export const Bot = (props: BotProps & { class?: string }) => {
       )
     }
 
-    if (data.resultId && typebotIdFromProps)
-      setResultInStorage(data.typebot.settings.general?.rememberUser?.storage)(
-        typebotIdFromProps,
-        data.resultId
+    if (
+      data.resultId &&
+      typebotIdFromProps &&
+      (data.typebot.settings.general?.rememberUser?.isEnabled ??
+        defaultSettings.general.rememberUser.isEnabled)
+    ) {
+      if (resultIdInStorage && resultIdInStorage !== data.resultId)
+        wipeExistingChatStateInStorage(data.typebot.id)
+      const storage =
+        data.typebot.settings.general?.rememberUser?.storage ??
+        defaultSettings.general.rememberUser.storage
+      setResultInStorage(storage)(typebotIdFromProps, data.resultId)
+      const initialChatInStorage = getInitialChatReplyFromStorage(
+        data.typebot.id
       )
-    setInitialChatReply(data)
-    setCustomCss(data.typebot.theme.customCss ?? '')
+      if (initialChatInStorage) {
+        setInitialChatReply(initialChatInStorage)
+      } else {
+        setInitialChatReply(data)
+        setInitialChatReplyInStorage(data, {
+          typebotId: data.typebot.id,
+          storage,
+        })
+      }
+      props.onChatStatePersisted?.(true)
+    } else {
+      wipeExistingChatStateInStorage(data.typebot.id)
+      setInitialChatReply(data)
+      if (data.input?.id && props.onNewInputBlock)
+        props.onNewInputBlock(data.input)
+      if (data.logs) props.onNewLogs?.(data.logs)
+      props.onChatStatePersisted?.(false)
+    }
 
-    if (data.input?.id && props.onNewInputBlock)
-      props.onNewInputBlock(data.input)
-    if (data.logs) props.onNewLogs?.(data.logs)
+    setCustomCss(data.typebot.theme.customCss ?? '')
   }
 
   createEffect(() => {
@@ -176,7 +218,18 @@ export const Bot = (props: BotProps & { class?: string }) => {
               resultId: initialChatReply.resultId,
               sessionId: initialChatReply.sessionId,
               typebot: initialChatReply.typebot,
+              storage:
+                initialChatReply.typebot.settings.general?.rememberUser
+                  ?.isEnabled &&
+                !(
+                  typeof props.typebot !== 'string' ||
+                  (props.isPreview ?? false)
+                )
+                  ? initialChatReply.typebot.settings.general?.rememberUser
+                      ?.storage ?? defaultSettings.general.rememberUser.storage
+                  : undefined,
             }}
+            progressBarRef={props.progressBarRef}
             onNewInputBlock={props.onNewInputBlock}
             onNewLogs={props.onNewLogs}
             onAnswer={props.onAnswer}
@@ -192,6 +245,7 @@ type BotContentProps = {
   initialChatReply: InitialChatReply
   context: BotContext
   class?: string
+  progressBarRef?: HTMLDivElement
   onNewInputBlock?: (inputBlock: InputBlock) => void
   onAnswer?: (answer: { message: string; blockId: string }) => void
   onEnd?: () => void
@@ -199,8 +253,12 @@ type BotContentProps = {
 }
 
 const BotContent = (props: BotContentProps) => {
-  const [progressValue, setProgressValue] = createSignal<number | undefined>(
-    props.initialChatReply.progress
+  const [progressValue, setProgressValue] = persist(
+    createSignal<number | undefined>(props.initialChatReply.progress),
+    {
+      storage: props.context.storage,
+      key: `typebot-${props.context.typebot.id}-progressValue`,
+    }
   )
   let botContainer: HTMLDivElement | undefined
 
@@ -211,12 +269,15 @@ const BotContent = (props: BotContentProps) => {
   onMount(() => {
     if (!botContainer) return
     resizeObserver.observe(botContainer)
+    setBotContainerHeight(`${botContainer.clientHeight}px`)
   })
 
   createEffect(() => {
     injectFont(
-      props.initialChatReply.typebot.theme.general?.font ??
-        defaultTheme.general.font
+      props.initialChatReply.typebot.theme.general?.font ?? {
+        type: defaultFontType,
+        family: defaultFontFamily,
+      }
     )
     if (!botContainer) return
     setCssVariablesValue(
@@ -235,7 +296,7 @@ const BotContent = (props: BotContentProps) => {
     <div
       ref={botContainer}
       class={clsx(
-        'relative flex w-full h-full text-base overflow-hidden bg-cover bg-center flex-col items-center typebot-container @container',
+        'relative flex w-full h-full text-base overflow-hidden flex-col justify-center items-center typebot-container',
         props.class
       )}
     >
@@ -245,19 +306,28 @@ const BotContent = (props: BotContentProps) => {
           props.initialChatReply.typebot.theme.general?.progressBar?.isEnabled
         }
       >
-        <ProgressBar value={progressValue() as number} />
+        <Show
+          when={
+            props.progressBarRef &&
+            (props.initialChatReply.typebot.theme.general?.progressBar
+              ?.position ?? defaultProgressBarPosition) === 'fixed'
+          }
+          fallback={<ProgressBar value={progressValue() as number} />}
+        >
+          <Portal mount={props.progressBarRef}>
+            <ProgressBar value={progressValue() as number} />
+          </Portal>
+        </Show>
       </Show>
-      <div class="flex w-full h-full justify-center">
-        <ConversationContainer
-          context={props.context}
-          initialChatReply={props.initialChatReply}
-          onNewInputBlock={props.onNewInputBlock}
-          onAnswer={props.onAnswer}
-          onEnd={props.onEnd}
-          onNewLogs={props.onNewLogs}
-          onProgressUpdate={setProgressValue}
-        />
-      </div>
+      <ConversationContainer
+        context={props.context}
+        initialChatReply={props.initialChatReply}
+        onNewInputBlock={props.onNewInputBlock}
+        onAnswer={props.onAnswer}
+        onEnd={props.onEnd}
+        onNewLogs={props.onNewLogs}
+        onProgressUpdate={setProgressValue}
+      />
       <Show
         when={
           props.initialChatReply.typebot.settings.general?.isBrandingEnabled

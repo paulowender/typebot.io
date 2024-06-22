@@ -1,6 +1,6 @@
 {
   "name": "@typebot.io/nextjs",
-  "version": "0.2.45",
+  "version": "0.2.91",
   "description": "Convenient library to display typebots on your Next.js website",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,14 +13,13 @@
   },
   "keywords": [],
   "author": "Baptiste Arnaud",
-  "license": "ISC",
+  "license": "AGPL-3.0-or-later",
   "devDependencies": {
     "@babel/preset-react": "7.22.5",
     "@babel/preset-typescript": "7.22.5",
     "@rollup/plugin-babel": "6.0.3",
     "@rollup/plugin-node-resolve": "15.1.0",
     "@rollup/plugin-terser": "0.4.3",
-    "@rollup/plugin-typescript": "11.1.2",
     "@typebot.io/js": "workspace:*",
     "@typebot.io/lib": "workspace:*",
     "@typebot.io/prisma": "workspace:*",
@@ -35,8 +34,9 @@
     "rollup": "3.26.2",
     "rollup-plugin-typescript-paths": "1.4.0",
     "tslib": "2.6.0",
-    "tsx": "3.12.7",
-    "typescript": "5.3.2"
+    "tsx": "4.6.2",
+    "typescript": "5.4.5",
+    "@rollup/plugin-typescript": "11.1.2"
   },
   "peerDependencies": {
     "next": "12.x || 13.x || 14.x",

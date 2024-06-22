@@ -16,7 +16,6 @@ import {
 import { logSchema } from '../result'
 import { settingsSchema, themeSchema } from '../typebot'
 import {
-  textBubbleContentSchema,
   imageBubbleContentSchema,
   videoBubbleContentSchema,
   audioBubbleContentSchema,
@@ -28,19 +27,35 @@ import { preprocessTypebot } from '../typebot/helpers/preprocessTypebot'
 import { typebotV5Schema, typebotV6Schema } from '../typebot/typebot'
 import { BubbleBlockType } from '../blocks/bubbles/constants'
 import { clientSideActionSchema } from './clientSideAction'
+import { ChatSession as ChatSessionFromPrisma } from '@typebot.io/prisma'
 
 const chatSessionSchema = z.object({
   id: z.string(),
   createdAt: z.date(),
   updatedAt: z.date(),
   state: sessionStateSchema,
-})
+  isReplying: z
+    .boolean()
+    .nullable()
+    .describe(
+      'Used in WhatsApp runtime to avoid concurrent replies from the bot'
+    ),
+}) satisfies z.ZodType<ChatSessionFromPrisma, z.ZodTypeDef, unknown>
 export type ChatSession = z.infer<typeof chatSessionSchema>
 
 const textMessageSchema = z
   .object({
     type: z.literal(BubbleBlockType.TEXT),
-    content: textBubbleContentSchema,
+    content: z.discriminatedUnion('type', [
+      z.object({
+        type: z.literal('richText'),
+        richText: z.any(),
+      }),
+      z.object({
+        type: z.literal('markdown'),
+        markdown: z.string(),
+      }),
+    ]),
   })
   .openapi({
     title: 'Text',
@@ -92,6 +107,7 @@ const embedMessageSchema = z
   })
 
 const displayEmbedBubbleSchema = z.object({
+  url: z.string().optional(),
   waitForEventFunction: z
     .object({
       args: z.record(z.string(), z.unknown()),
@@ -203,6 +219,7 @@ export const startChatInputSchema = z.object({
         Email: 'john@gmail.com',
       },
     }),
+  textBubbleContentFormat: z.enum(['richText', 'markdown']).default('richText'),
 })
 export type StartChatInput = z.infer<typeof startChatInputSchema>
 
@@ -224,14 +241,15 @@ export const startPreviewChatInputSchema = z.object({
     .describe(
       "[Where to find my bot's ID?](../how-to#how-to-find-my-typebotid)"
     ),
-  isStreamEnabled: z.boolean().optional(),
+  isStreamEnabled: z.boolean().optional().default(false),
   message: z.string().optional(),
   isOnlyRegistering: z
     .boolean()
     .optional()
     .describe(
       'If set to `true`, it will only register the session and not start the bot. This is used for 3rd party chat platforms as it can require a session to be registered before sending the first message.'
-    ),
+    )
+    .default(false),
   typebot: startTypebotSchema
     .optional()
     .describe(
@@ -250,6 +268,13 @@ export const startPreviewChatInputSchema = z.object({
         Email: 'john@gmail.com',
       },
     }),
+  sessionId: z
+    .string()
+    .optional()
+    .describe(
+      'If provided, will be used as the session ID and will overwrite any existing session with the same ID.'
+    ),
+  textBubbleContentFormat: z.enum(['richText', 'markdown']).default('richText'),
 })
 export type StartPreviewChatInput = z.infer<typeof startPreviewChatInputSchema>
 

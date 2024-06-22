@@ -1,10 +1,12 @@
-import { forgedBlockSchemas } from '@typebot.io/forge-schemas'
-import { enabledBlocks } from '@typebot.io/forge-repository'
+import { hasProPerks } from '@/features/billing/helpers/hasProPerks'
 import prisma from '@typebot.io/lib/prisma'
 import { Plan } from '@typebot.io/prisma'
 import { Block, Typebot } from '@typebot.io/schemas'
 import { IntegrationBlockType } from '@typebot.io/schemas/features/blocks/integrations/constants'
 import { defaultSendEmailOptions } from '@typebot.io/schemas/features/blocks/integrations/sendEmail/constants'
+import { LogicBlockType } from '@typebot.io/schemas/features/blocks/logic/constants'
+import { sessionOnlySetVariableOptions } from '@typebot.io/schemas/features/blocks/logic/setVariable/constants'
+import { isInputBlock } from '@typebot.io/schemas/helpers'
 
 export const sanitizeSettings = (
   settings: Typebot['settings'],
@@ -29,9 +31,9 @@ export const sanitizeSettings = (
         isEnabled:
           mode === 'create'
             ? false
-            : workspacePlan === Plan.FREE
-            ? false
-            : settings.whatsApp.isEnabled,
+            : hasProPerks({ plan: workspacePlan })
+            ? settings.whatsApp.isEnabled
+            : false,
       }
     : undefined,
 })
@@ -50,25 +52,6 @@ const sanitizeBlock =
   (workspaceId: string) =>
   async (block: Block): Promise<Block> => {
     if (!('options' in block) || !block.options) return block
-
-    if (enabledBlocks.includes(block.type as (typeof enabledBlocks)[number])) {
-      const schema = forgedBlockSchemas.find(
-        (s) => s.shape.type.value === block.type
-      )
-      if (!schema)
-        throw new Error(
-          `Integration block schema not found for block type ${block.type}`
-        )
-      return schema.parse({
-        ...block,
-        options: {
-          ...block.options,
-          credentialsId: await sanitizeCredentialsId(workspaceId)(
-            block.options.credentialsId
-          ),
-        },
-      })
-    }
 
     if (!('credentialsId' in block.options) || !block.options.credentialsId)
       return block
@@ -145,4 +128,73 @@ export const isCustomDomainNotAvailable = async ({
   })
 
   return typebotWithSameDomainCount > 0
+}
+
+export const sanitizeFolderId = async ({
+  folderId,
+  workspaceId,
+}: {
+  folderId: string | null
+  workspaceId: string
+}) => {
+  if (!folderId) return
+  const folderCount = await prisma.dashboardFolder.count({
+    where: {
+      id: folderId,
+      workspaceId,
+    },
+  })
+  return folderCount !== 0 ? folderId : undefined
+}
+
+export const sanitizeCustomDomain = async ({
+  customDomain,
+  workspaceId,
+}: {
+  customDomain?: string | null
+  workspaceId: string
+}) => {
+  if (!customDomain) return customDomain
+  const domainCount = await prisma.customDomain.count({
+    where: {
+      name: customDomain?.split('/')[0],
+      workspaceId,
+    },
+  })
+  return domainCount === 0 ? null : customDomain
+}
+
+export const sanitizeVariables = ({
+  variables,
+  groups,
+}: Pick<Typebot, 'variables' | 'groups'>): Typebot['variables'] => {
+  const blocks = groups
+    .flatMap((group) => group.blocks as Block[])
+    .filter((b) => isInputBlock(b) || b.type === LogicBlockType.SET_VARIABLE)
+  return variables.map((variable) => {
+    if (variable.isSessionVariable) return variable
+    const isVariableLinkedToInputBlock = blocks.some(
+      (block) =>
+        isInputBlock(block) && block.options?.variableId === variable.id
+    )
+    if (isVariableLinkedToInputBlock)
+      return {
+        ...variable,
+        isSessionVariable: true,
+      }
+    const isVariableSetToForbiddenResultVar = blocks.some(
+      (block) =>
+        block.type === LogicBlockType.SET_VARIABLE &&
+        block.options?.variableId === variable.id &&
+        sessionOnlySetVariableOptions.includes(
+          block.options.type as (typeof sessionOnlySetVariableOptions)[number]
+        )
+    )
+    if (isVariableSetToForbiddenResultVar)
+      return {
+        ...variable,
+        isSessionVariable: true,
+      }
+    return variable
+  })
 }

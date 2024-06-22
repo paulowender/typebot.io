@@ -19,6 +19,7 @@ You can preview and test your bot by clicking on the Preview button in the edito
 WhatsApp environment have some limitations that you need to keep in mind when building the bot:
 
 - GIF and SVG image files are not supported. They won't be displayed.
+- Only .mp4 videos are supported (See [Supported Media Types](https://developers.facebook.com/docs/whatsapp/cloud-api/reference/media#supported-media-types) for more info).
 - Buttons content can't be longer than 20 characters. If the content is longer, it will be truncated.
 - WhatsApp only allows to display 3 buttons at a time. So we work around that by adding "..." messages to display more buttons.
 - Incompatible blocks, if present, they will be skipped:
@@ -59,6 +60,31 @@ You can customize how your bot behaves on WhatsApp in the `Configure integration
 **Session expiration timeout**: A number from 0 to 48 which is the number of hours after which the session will expire. If the user doesn't interact with the bot for more than the timeout, the session will expire and if user sends a new message, it will start a new chat. The default is 4 hours.
 
 **Start bot condition**: A condition that will be evaluated when a user starts a conversation with your bot. If the condition is not met, the bot will not be triggered.
+
+## Collect position
+
+You can ask for the user's location with a basic [Text input block](../../editor/blocks/inputs/text). It will be saved as a variable with the latitude and longitude with the following format: `<LAT>, <LONG>`.
+
+<Tabs>
+  <Tab title="Flow">
+    <Frame style={{ maxWidth: '400px' }}>
+      <img
+        src="/images/whatsapp/position-flow.jpg"
+        alt="Position collection flow"
+        className="rounded-lg"
+      />
+    </Frame>
+  </Tab>
+  <Tab title="Bot">
+    <Frame style={{ maxWidth: '400px' }}>
+      <img
+        src="/images/whatsapp/position-bot.png"
+        alt="Position collection bot"
+        className="rounded-lg"
+      />
+    </Frame>
+  </Tab>
+</Tabs>
 
 ## FAQ
 

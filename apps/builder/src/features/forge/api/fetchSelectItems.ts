@@ -3,13 +3,14 @@ import { authenticatedProcedure } from '@/helpers/server/trpc'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 import { isReadWorkspaceFobidden } from '@/features/workspace/helpers/isReadWorkspaceFobidden'
-import { forgedBlocks } from '@typebot.io/forge-schemas'
+import { forgedBlocks } from '@typebot.io/forge-repository/definitions'
+import { forgedBlockIds } from '@typebot.io/forge-repository/constants'
 import { decrypt } from '@typebot.io/lib/api/encryption/decrypt'
 
 export const fetchSelectItems = authenticatedProcedure
   .input(
     z.object({
-      integrationId: z.string(),
+      integrationId: z.enum(forgedBlockIds),
       fetcherId: z.string(),
       options: z.any(),
       workspaceId: z.string(),
@@ -20,8 +21,6 @@ export const fetchSelectItems = authenticatedProcedure
       input: { workspaceId, integrationId, fetcherId, options },
       ctx: { user },
     }) => {
-      if (!options.credentialsId) return { items: [] }
-
       const workspace = await prisma.workspace.findFirst({
         where: { id: workspaceId },
         select: {
@@ -30,16 +29,18 @@ export const fetchSelectItems = authenticatedProcedure
               userId: true,
             },
           },
-          credentials: {
-            where: {
-              id: options.credentialsId,
-            },
-            select: {
-              id: true,
-              data: true,
-              iv: true,
-            },
-          },
+          credentials: options.credentialsId
+            ? {
+                where: {
+                  id: options.credentialsId,
+                },
+                select: {
+                  id: true,
+                  data: true,
+                  iv: true,
+                },
+              }
+            : undefined,
         },
       })
 
@@ -49,13 +50,13 @@ export const fetchSelectItems = authenticatedProcedure
           message: 'No workspace found',
         })
 
-      const credentials = workspace.credentials.at(0)
+      const credentials = workspace.credentials?.at(0)
 
-      if (!credentials) return { items: [] }
+      const credentialsData = credentials
+        ? await decrypt(credentials.data, credentials.iv)
+        : undefined
 
-      const credentialsData = await decrypt(credentials.data, credentials.iv)
-
-      const blockDef = forgedBlocks.find((b) => b.id === integrationId)
+      const blockDef = forgedBlocks[integrationId]
 
       const fetchers = (blockDef?.fetchers ?? []).concat(
         blockDef?.actions.flatMap((action) => action.fetchers ?? []) ?? []
@@ -66,7 +67,8 @@ export const fetchSelectItems = authenticatedProcedure
 
       return {
         items: await fetcher.fetch({
-          credentials: credentialsData,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          credentials: credentialsData as any,
           options,
         }),
       }

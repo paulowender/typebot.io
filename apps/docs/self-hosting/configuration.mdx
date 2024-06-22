@@ -7,8 +7,8 @@ icon: gear
   If you're self-hosting Typebot, [sponsoring
   me](https://github.com/sponsors/baptisteArno) is a great way to give back to
   the community and to contribute to the long-term sustainability of the
-  project. Thank you for supporting independent creators of Free Open Source
-  Software!
+  project. It also comes with some perks like priority support and private
+  workshops. ❤️
 </Note>
 
 Parameters marked with <span style={{color: '#ef5151'}}>\*</span> are required.
@@ -43,21 +43,48 @@ Used for sending email notifications and authentication
 | SMTP_SECURE           | false   | If true the connection will use TLS when connecting to server. If false (the default) then TLS is used if server supports the STARTTLS extension. In most cases set this value to true if you are connecting to port 465. For port 587 or 25 keep it false |
 | SMTP_AUTH_DISABLED    | false   | To disable the authentication by email but still use the provided config for notifications                                                                                                                                                                 |
 
-## Google (Auth, Sheets, Fonts)
-
-Used authentication in the builder and for the Google Sheets integration step.
+## Google Auth
 
 <Accordion title="Requirements">
 
-1. Enable the APIs you want: Google Sheets API, Google Picker API (Used for the Google Sheets integration to pick a spreadsheet), Web Fonts Developer API
+1. Head over the Credentials tab: https://console.developers.google.com/apis/credentials
+
+2. Create an API key. This will be your `NEXT_PUBLIC_GOOGLE_API_KEY`
+
+3. Create a OAuth client ID. This will be your `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+
+   Make sure to set the following scopes: `userinfo.email`
+
+   The "Authorized redirect URIs" used when creating the credentials must include your full domain and end in the callback path:
+
+   - For production:
+     - https://\<YOUR_DOMAIN\>/api/auth/callback/google
+     - https://\<YOUR_DOMAIN\>/api/credentials/google-sheets/callback
+   - For development:
+     - http://localhost:3000/api/auth/callback/google
+     - http://localhost:3000/api/credentials/google-sheets/callback
+
+</Accordion>
+
+| Parameter                  | Default | Description                                   |
+| -------------------------- | ------- | --------------------------------------------- |
+| GOOGLE_CLIENT_ID           |         | The Client ID from the Google API Console     |
+| GOOGLE_CLIENT_SECRET       |         | The Client secret from the Google API Console |
+| NEXT_PUBLIC_GOOGLE_API_KEY |         | The API Key from the Google API Console       |
+
+## Google Sheets
+
+<Accordion title="Requirements">
+
+1. Enable the following APIs in the Google Cloud Console: Google Sheets API, Google Picker API
 
 2. Head over the Credentials tab: https://console.developers.google.com/apis/credentials
 
-3. Create an API key with access to the Google Picker API and Web Fonts Developer API (optional). This will be your `NEXT_PUBLIC_GOOGLE_API_KEY`
+3. Create an API key with access to the Google Picker API. This will be your `NEXT_PUBLIC_GOOGLE_API_KEY`
 
 4. Create a OAuth client ID. This will be your `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
 
-   Make sure to set the required scopes (`userinfo.email`, `spreadsheets`, `drive.file`) in your console
+   Make sure to set the following scopes: `userinfo.email`, `spreadsheets`, `drive.file`
 
    The "Authorized redirect URIs" used when creating the credentials must include your full domain and end in the callback path:
 
@@ -77,6 +104,24 @@ Used authentication in the builder and for the Google Sheets integration step.
 | GOOGLE_CLIENT_ID           |         | The Client ID from the Google API Console     |
 | GOOGLE_CLIENT_SECRET       |         | The Client secret from the Google API Console |
 | NEXT_PUBLIC_GOOGLE_API_KEY |         | The API Key from the Google API Console       |
+
+## Google Fonts
+
+Used authentication in the builder and for the Google Sheets integration step.
+
+<Accordion title="Requirements">
+
+1. Enable the following API in the Google Cloud Console: Web Fonts Developer API
+
+2. Head over the Credentials tab: https://console.developers.google.com/apis/credentials
+
+3. Create an API key with access to the Web Fonts Developer API. This will be your `NEXT_PUBLIC_GOOGLE_API_KEY`
+
+</Accordion>
+
+| Parameter                  | Default | Description                             |
+| -------------------------- | ------- | --------------------------------------- |
+| NEXT_PUBLIC_GOOGLE_API_KEY |         | The API Key from the Google API Console |
 
 ## GitHub (Auth)
 
@@ -123,6 +168,20 @@ The Authorization callback URL should be `$NEXTAUTH_URL/api/auth/callback/azure-
 | AZURE_AD_CLIENT_ID     |         | Application client ID                                         |
 | AZURE_AD_CLIENT_SECRET |         | Application client secret. Can be obtained from Azure Portal. |
 | AZURE_AD_TENANT_ID     |         | Azure Tenant ID                                               |
+
+## Keycloak (Auth)
+
+Used for authenticating with Keycloak.
+Follow the official Keycloak guide for creating OAuth2 applications [here](https://www.keycloak.org/).
+
+| Parameter                | Default            | Description                                                                          |
+| ------------------------ | ------------------ | ------------------------------------------------------------------------------------ |
+| KEYCLOAK_CLIENT_ID       |                    | Application client ID.                                                               |
+| KEYCLOAK_CLIENT_SECRET   |                    | Application secret                                                                   |
+| KEYCLOAK_REALM           |                    | Your Keycloak Realm                                                                  |
+| KEYCLOAK_BASE_URL        |                    | Base URL of the Keycloak instance                                                    |
+
+
 
 ## Custom OAuth Provider (Auth)
 
@@ -238,44 +297,20 @@ In order to be able to test your bot on WhatsApp from the Preview drawer, you ne
 
 </Accordion>
 
-| Parameter                             | Default                    | Description                                             |
-| ------------------------------------- | -------------------------- | ------------------------------------------------------- |
-| META_SYSTEM_USER_TOKEN                |                            | The system user token used to send WhatsApp messages    |
-| WHATSAPP_PREVIEW_FROM_PHONE_NUMBER_ID |                            | The phone number ID from which the message will be sent |
-| WHATSAPP_PREVIEW_TEMPLATE_NAME        |                            | The preview start template message name                 |
-| WHATSAPP_PREVIEW_TEMPLATE_LANG        | en_US                      | The preview start template message name                 |
-| WHATSAPP_CLOUD_API_URL                | https://graph.facebook.com | The WhatsApp Cloud API base URL                         |
+| Parameter                             | Default                    | Description                                                                                                                                  |
+| ------------------------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| META_SYSTEM_USER_TOKEN                |                            | The system user token used to send WhatsApp messages                                                                                         |
+| WHATSAPP_PREVIEW_FROM_PHONE_NUMBER_ID |                            | The phone number ID from which the message will be sent                                                                                      |
+| WHATSAPP_PREVIEW_TEMPLATE_NAME        |                            | The preview start template message name                                                                                                      |
+| WHATSAPP_PREVIEW_TEMPLATE_LANG        | en_US                      | The preview start template message name                                                                                                      |
+| WHATSAPP_CLOUD_API_URL                | https://graph.facebook.com | The WhatsApp Cloud API base URL                                                                                                              |
+| WHATSAPP_INTERACTIVE_GROUP_SIZE       | 3                          | The array size of items to send to API on choice input. You can't choose a number higher than 3 if you are using the official cloud API URL. |
 
 ## Others
 
 The [official Typebot managed service](https://app.typebot.io/) uses other services such as [Stripe](https://stripe.com/) for processing payments, [Sentry](https://sentry.io/) for tracking bugs and [Sleekplan](https://sleekplan.com/) for user feedbacks.
 
 The related environment variables are listed here but you are probably not interested in these if you self-host Typebot.
-
-<Accordion title="Stripe">
-
-| Parameter                     | Default | Description                               |
-| ----------------------------- | ------- | ----------------------------------------- |
-| NEXT_PUBLIC_STRIPE_PUBLIC_KEY |         | Stripe public key                         |
-| STRIPE_SECRET_KEY             |         | Stripe secret key                         |
-| STRIPE_STARTER_PRICE_ID       |         | Starter plan price id                     |
-| STRIPE_PRO_PRICE_ID           |         | Pro monthly plan price id                 |
-| STRIPE_STARTER_CHATS_PRICE_ID |         | Starter Additional chats monthly price id |
-| STRIPE_PRO_CHATS_PRICE_ID     |         | Pro Additional chats monthly price id     |
-| STRIPE_WEBHOOK_SECRET         |         | Stripe Webhook secret                     |
-
-</Accordion>
-
-<Accordion title="Sentry">
-
-| Parameter              | Default | Description                            |
-| ---------------------- | ------- | -------------------------------------- |
-| NEXT_PUBLIC_SENTRY_DSN |         | Sentry DSN                             |
-| SENTRY_AUTH_TOKEN      |         | Used to upload sourcemaps on app build |
-| SENTRY_PROJECT         |         | Sentry project name                    |
-| SENTRY_ORG             |         | Sentry organization name               |
-
-</Accordion>
 
 <Accordion title="Vercel (custom domains)">
 
@@ -284,14 +319,6 @@ The related environment variables are listed here but you are probably not inter
 | VERCEL_TOKEN                           |         | Vercel API token                                |
 | NEXT_PUBLIC_VERCEL_VIEWER_PROJECT_NAME |         | The name of the viewer project in Vercel        |
 | VERCEL_TEAM_ID                         |         | Vercel team ID that contains the viewer project |
-
-</Accordion>
-
-<Accordion title="Sleekplan">
-
-| Parameter         | Default | Description                                                              |
-| ----------------- | ------- | ------------------------------------------------------------------------ |
-| SLEEKPLAN_SSO_KEY |         | Sleekplan SSO key used to automatically authenticate a user in Sleekplan |
 
 </Accordion>
 

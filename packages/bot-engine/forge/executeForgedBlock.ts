@@ -1,13 +1,13 @@
 import { VariableStore, LogsStore } from '@typebot.io/forge'
-import { ForgedBlock, forgedBlocks } from '@typebot.io/forge-schemas'
+import { forgedBlocks } from '@typebot.io/forge-repository/definitions'
+import { ForgedBlock } from '@typebot.io/forge-repository/types'
 import { decrypt } from '@typebot.io/lib/api/encryption/decrypt'
-import { isPlaneteScale } from '@typebot.io/lib/isPlanetScale'
-import prisma from '@typebot.io/lib/prisma'
 import {
   SessionState,
   ContinueChatResponse,
   Block,
   TypebotInSession,
+  SetVariableHistoryItem,
 } from '@typebot.io/schemas'
 import { deepParseVariables } from '@typebot.io/variables/deepParseVariables'
 import {
@@ -18,12 +18,13 @@ import { updateVariablesInSession } from '@typebot.io/variables/updateVariablesI
 import { ExecuteIntegrationResponse } from '../types'
 import { byId } from '@typebot.io/lib'
 import { BubbleBlockType } from '@typebot.io/schemas/features/blocks/bubbles/constants'
+import { getCredentials } from '../queries/getCredentials'
 
 export const executeForgedBlock = async (
   state: SessionState,
   block: ForgedBlock
 ): Promise<ExecuteIntegrationResponse> => {
-  const blockDef = forgedBlocks.find((b) => b.id === block.type)
+  const blockDef = forgedBlocks[block.type]
   if (!blockDef) return { outgoingEdgeId: block.outgoingEdgeId }
   const action = blockDef.actions.find((a) => a.name === block.options.action)
   const noCredentialsError = {
@@ -39,11 +40,7 @@ export const executeForgedBlock = async (
         logs: [noCredentialsError],
       }
     }
-    credentials = await prisma.credentials.findUnique({
-      where: {
-        id: block.options.credentialsId,
-      },
-    })
+    credentials = await getCredentials(block.options.credentialsId)
     if (!credentials) {
       console.error('Could not find credentials in database')
       return {
@@ -56,15 +53,12 @@ export const executeForgedBlock = async (
   const typebot = state.typebotsQueue[0].typebot
   if (
     action?.run?.stream &&
-    isPlaneteScale() &&
-    credentials &&
-    isCredentialsV2(credentials) &&
-    state.isStreamEnabled &&
-    !state.whatsApp &&
     isNextBubbleTextWithStreamingVar(typebot)(
       block.id,
       action.run.stream.getStreamVariableId(block.options)
-    )
+    ) &&
+    state.isStreamEnabled &&
+    !state.whatsApp
   ) {
     return {
       outgoingEdgeId: block.outgoingEdgeId,
@@ -79,6 +73,7 @@ export const executeForgedBlock = async (
   }
 
   let newSessionState = state
+  let setVariableHistory: SetVariableHistoryItem[] = []
 
   const variables: VariableStore = {
     get: (id: string) => {
@@ -92,9 +87,13 @@ export const executeForgedBlock = async (
         (variable) => variable.id === id
       )
       if (!variable) return
-      newSessionState = updateVariablesInSession(newSessionState)([
-        { ...variable, value },
-      ])
+      const { newSetVariableHistory, updatedState } = updateVariablesInSession({
+        newVariables: [{ ...variable, value }],
+        state: newSessionState,
+        currentBlockId: block.id,
+      })
+      newSessionState = updatedState
+      setVariableHistory.push(...newSetVariableHistory)
     },
     parse: (text: string, params?: ParseVariablesOptions) =>
       parseVariables(
@@ -121,7 +120,8 @@ export const executeForgedBlock = async (
     : undefined
 
   const parsedOptions = deepParseVariables(
-    state.typebotsQueue[0].typebot.variables
+    state.typebotsQueue[0].typebot.variables,
+    { removeEmptyStrings: true }
   )(block.options)
   await action?.run?.server?.({
     credentials: credentialsData ?? {},
@@ -150,6 +150,9 @@ export const executeForgedBlock = async (
       ? {
           type: 'custom-embed',
           content: {
+            url: action.run.web.displayEmbedBubble.parseUrl({
+              options: parsedOptions,
+            }),
             initFunction: action.run.web.displayEmbedBubble.parseInitFunction({
               options: parsedOptions,
             }),
@@ -160,6 +163,7 @@ export const executeForgedBlock = async (
           },
         }
       : undefined,
+    newSetVariableHistory: setVariableHistory,
   }
 }
 

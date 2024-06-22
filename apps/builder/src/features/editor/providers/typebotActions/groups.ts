@@ -7,6 +7,7 @@ import {
   Edge,
   GroupV6,
   TypebotV6,
+  Variable,
 } from '@typebot.io/schemas'
 import { SetTypebot } from '../TypebotProvider'
 import {
@@ -14,9 +15,11 @@ import {
   createBlockDraft,
   duplicateBlockDraft,
 } from './blocks'
-import { blockHasItems, byId, isEmpty } from '@typebot.io/lib'
+import { byId, isEmpty } from '@typebot.io/lib'
+import { blockHasItems, blockHasOptions } from '@typebot.io/schemas/helpers'
 import { Coordinates, CoordinatesMap } from '@/features/graph/types'
 import { parseUniqueKey } from '@typebot.io/lib/parseUniqueKey'
+import { extractVariableIdsFromObject } from '@typebot.io/variables/extractVariablesFromObject'
 
 export type GroupsActions = {
   createGroup: (
@@ -25,7 +28,7 @@ export type GroupsActions = {
       block: BlockV6 | BlockV6['type']
       indices: BlockIndices
     }
-  ) => void
+  ) => string | void
   updateGroup: (
     groupIndex: number,
     updates: Partial<Omit<GroupV6, 'id'>>
@@ -33,6 +36,7 @@ export type GroupsActions = {
   pasteGroups: (
     groups: GroupV6[],
     edges: Edge[],
+    variables: Pick<Variable, 'id' | 'name'>[],
     oldToNewIdsMapping: Map<string, string>
   ) => void
   updateGroupsCoordinates: (newCoord: CoordinatesMap) => void
@@ -53,7 +57,8 @@ const groupsActions = (setTypebot: SetTypebot): GroupsActions => ({
     groupLabel?: string
     block: BlockV6 | BlockV6['type']
     indices: BlockIndices
-  }) =>
+  }) => {
+    let newBlockId
     setTypebot((typebot) =>
       produce(typebot, (typebot) => {
         const newGroup: GroupV6 = {
@@ -63,9 +68,11 @@ const groupsActions = (setTypebot: SetTypebot): GroupsActions => ({
           blocks: [],
         }
         typebot.groups.push(newGroup)
-        createBlockDraft(typebot, block, indices)
+        newBlockId = createBlockDraft(typebot, block, indices)
       })
-    ),
+    )
+    return newBlockId
+  },
   updateGroup: (groupIndex: number, updates: Partial<Omit<GroupV6, 'id'>>) =>
     setTypebot((typebot) =>
       produce(typebot, (typebot) => {
@@ -127,12 +134,29 @@ const groupsActions = (setTypebot: SetTypebot): GroupsActions => ({
   pasteGroups: (
     groups: GroupV6[],
     edges: Edge[],
+    variables: Omit<Variable, 'value'>[],
     oldToNewIdsMapping: Map<string, string>
   ) => {
     const createdGroups: GroupV6[] = []
     setTypebot((typebot) =>
       produce(typebot, (typebot) => {
         const edgesToCreate: Edge[] = []
+        const variablesToCreate: Omit<Variable, 'value'>[] = []
+        variables.forEach((variable) => {
+          const existingVariable = typebot.variables.find(
+            (v) => v.name === variable.name
+          )
+          if (existingVariable) {
+            oldToNewIdsMapping.set(variable.id, existingVariable.id)
+            return
+          }
+          const id = createId()
+          oldToNewIdsMapping.set(variable.id, id)
+          variablesToCreate.push({
+            ...variable,
+            id,
+          })
+        })
         groups.forEach((group) => {
           const groupTitle = isEmpty(group.title)
             ? ''
@@ -147,6 +171,25 @@ const groupsActions = (setTypebot: SetTypebot): GroupsActions => ({
               const newBlock = { ...block }
               const blockId = createId()
               oldToNewIdsMapping.set(newBlock.id, blockId)
+              console.log(JSON.stringify(newBlock), blockHasOptions(newBlock))
+              if (blockHasOptions(newBlock) && newBlock.options) {
+                const variableIdsToReplace = extractVariableIdsFromObject(
+                  newBlock.options
+                ).filter((v) => oldToNewIdsMapping.has(v))
+                console.log(
+                  JSON.stringify(newBlock.options),
+                  variableIdsToReplace
+                )
+                if (variableIdsToReplace.length > 0) {
+                  let optionsStr = JSON.stringify(newBlock.options)
+                  variableIdsToReplace.forEach((variableId) => {
+                    const newId = oldToNewIdsMapping.get(variableId)
+                    if (!newId) return
+                    optionsStr = optionsStr.replace(variableId, newId)
+                  })
+                  newBlock.options = JSON.parse(optionsStr)
+                }
+              }
               if (blockHasItems(newBlock)) {
                 newBlock.items = newBlock.items?.map((item) => {
                   const id = createId()
@@ -160,6 +203,8 @@ const groupsActions = (setTypebot: SetTypebot): GroupsActions => ({
                         id: outgoingEdgeId,
                       })
                       oldToNewIdsMapping.set(item.id, id)
+                    } else {
+                      outgoingEdgeId = undefined
                     }
                   }
                   return {
@@ -179,6 +224,8 @@ const groupsActions = (setTypebot: SetTypebot): GroupsActions => ({
                     ...edge,
                     id: outgoingEdgeId,
                   })
+                } else {
+                  outgoingEdgeId = undefined
                 }
               }
               return {
@@ -215,6 +262,10 @@ const groupsActions = (setTypebot: SetTypebot): GroupsActions => ({
             },
           }
           typebot.edges.push(newEdge)
+        })
+
+        variablesToCreate.forEach((variableToCreate) => {
+          typebot.variables.unshift(variableToCreate)
         })
       })
     )

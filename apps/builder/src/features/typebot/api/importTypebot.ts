@@ -11,10 +11,15 @@ import {
 } from '@typebot.io/schemas'
 import { z } from 'zod'
 import { getUserRoleInWorkspace } from '@/features/workspace/helpers/getUserRoleInWorkspace'
-import { sanitizeGroups, sanitizeSettings } from '../helpers/sanitizers'
+import {
+  sanitizeFolderId,
+  sanitizeGroups,
+  sanitizeSettings,
+  sanitizeVariables,
+} from '../helpers/sanitizers'
 import { preprocessTypebot } from '@typebot.io/schemas/features/typebot/helpers/preprocessTypebot'
-import { migrateTypebot } from '@typebot.io/lib/migrations/migrateTypebot'
-import { trackEvents } from '@typebot.io/lib/telemetry/trackEvents'
+import { migrateTypebot } from '@typebot.io/migrations/migrateTypebot'
+import { trackEvents } from '@typebot.io/telemetry/trackEvents'
 
 const omittedProps = {
   id: true,
@@ -29,7 +34,6 @@ const omittedProps = {
   resultsTablePreferencesSchema: true,
   selectedThemeTemplateId: true,
   publicId: true,
-  folderId: true,
 } as const
 
 const importingTypebotSchema = z.preprocess(
@@ -74,7 +78,6 @@ const migrateImportingTypebot = (
     isArchived: false,
     whatsAppCredentialsId: null,
     publicId: null,
-    folderId: null,
     riskLevel: null,
   } satisfies Typebot
   return migrateTypebot(fullTypebot)
@@ -120,6 +123,12 @@ export const importTypebot = authenticatedProcedure
 
     const migratedTypebot = await migrateImportingTypebot(typebot)
 
+    const groups = (
+      migratedTypebot.groups
+        ? await sanitizeGroups(workspaceId)(migratedTypebot.groups)
+        : []
+    ) as TypebotV6['groups']
+
     const newTypebot = await prisma.typebot.create({
       data: {
         version: '6',
@@ -127,9 +136,7 @@ export const importTypebot = authenticatedProcedure
         name: migratedTypebot.name,
         icon: migratedTypebot.icon,
         selectedThemeTemplateId: migratedTypebot.selectedThemeTemplateId,
-        groups: (migratedTypebot.groups
-          ? await sanitizeGroups(workspaceId)(migratedTypebot.groups)
-          : []) as TypebotV6['groups'],
+        groups,
         events: migratedTypebot.events ?? undefined,
         theme: migratedTypebot.theme ? migratedTypebot.theme : {},
         settings: migratedTypebot.settings
@@ -141,8 +148,13 @@ export const importTypebot = authenticatedProcedure
               },
             }
           : {},
-        folderId: migratedTypebot.folderId,
-        variables: migratedTypebot.variables ?? [],
+        folderId: await sanitizeFolderId({
+          folderId: migratedTypebot.folderId,
+          workspaceId: workspace.id,
+        }),
+        variables: migratedTypebot.variables
+          ? sanitizeVariables({ variables: migratedTypebot.variables, groups })
+          : [],
         edges: migratedTypebot.edges ?? [],
         resultsTablePreferences:
           migratedTypebot.resultsTablePreferences ?? undefined,

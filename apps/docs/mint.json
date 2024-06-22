@@ -124,7 +124,10 @@
                 "editor/blocks/integrations/openai",
                 "editor/blocks/integrations/zemantic-ai",
                 "editor/blocks/integrations/mistral",
-                "editor/blocks/integrations/elevenlabs"
+                "editor/blocks/integrations/elevenlabs",
+                "editor/blocks/integrations/anthropic",
+                "editor/blocks/integrations/dify-ai",
+                "editor/blocks/integrations/nocodb"
               ]
             }
           ]
@@ -142,7 +145,7 @@
     },
     {
       "group": "Settings",
-      "pages": ["settings/overview"]
+      "pages": ["settings/overview", "settings/remember-user"]
     },
     {
       "group": "Deploy",
@@ -193,6 +196,7 @@
     {
       "group": "Guides",
       "pages": [
+        "guides/how-to-get-help",
         "guides/mailer-lite",
         "guides/multi-avatars",
         "guides/rtl",
@@ -237,6 +241,7 @@
         "contribute/guides/local-installation",
         "contribute/guides/create-block",
         "contribute/guides/documentation",
+        "contribute/guides/blog",
         "contribute/guides/translation"
       ]
     },
@@ -260,6 +265,7 @@
         "api-reference/chat/start-preview-chat",
         "api-reference/chat/continue-chat",
         "api-reference/chat/save-logs",
+        "api-reference/chat/generate-upload-url",
         "api-reference/chat/update-typebot-in-session"
       ]
     },

@@ -15,7 +15,7 @@ import {
   IconButton,
   HStack,
 } from '@chakra-ui/react'
-import { useState, useRef, ChangeEvent } from 'react'
+import { useState, useRef, ChangeEvent, useEffect } from 'react'
 import { isDefined } from '@typebot.io/lib'
 import { useOutsideClick } from '@/hooks/useOutsideClick'
 import { useParentModal } from '@/features/graph/providers/ParentModalProvider'
@@ -23,17 +23,16 @@ import { ChevronDownIcon, CloseIcon } from '../icons'
 
 const dropdownCloseAnimationDuration = 300
 
-type Item =
-  | string
-  | {
-      icon?: JSX.Element
-      label: string
-      value: string
-      extras?: Record<string, unknown>
-    }
+type RichItem = {
+  icon?: JSX.Element
+  label: string
+  value: string
+  extras?: Record<string, unknown>
+}
+
+type Item = string | RichItem
 
 type Props<T extends Item> = {
-  isPopoverMatchingInputWidth?: boolean
   selectedItem?: string
   items: readonly T[] | undefined
   placeholder?: string
@@ -41,7 +40,6 @@ type Props<T extends Item> = {
 }
 
 export const Select = <T extends Item>({
-  isPopoverMatchingInputWidth = true,
   selectedItem,
   placeholder,
   items,
@@ -61,6 +59,18 @@ export const Select = <T extends Item>({
     )
   )
 
+  useEffect(() => {
+    if (!items || typeof items[0] === 'string' || !selectedItem || isTouched)
+      return
+    setInputValue(
+      getItemLabel(
+        (items as readonly RichItem[]).find(
+          (item) => selectedItem === item.value
+        ) ?? selectedItem
+      )
+    )
+  }, [isTouched, items, selectedItem])
+
   const [keyboardFocusIndex, setKeyboardFocusIndex] = useState<
     number | undefined
   >()
@@ -69,17 +79,15 @@ export const Select = <T extends Item>({
   const inputRef = useRef<HTMLInputElement>(null)
   const { ref: parentModalRef } = useParentModal()
 
-  const filteredItems = (
-    isTouched
-      ? [
-          ...(items ?? []).filter((item) =>
-            getItemLabel(item)
-              .toLowerCase()
-              .includes((inputValue ?? '').toLowerCase())
-          ),
-        ]
-      : items ?? []
-  ).slice(0, 50)
+  const filteredItems = isTouched
+    ? [
+        ...(items ?? []).filter((item) =>
+          getItemLabel(item)
+            .toLowerCase()
+            .includes((inputValue ?? '').toLowerCase())
+        ),
+      ]
+    : items ?? []
 
   const closeDropdown = () => {
     onClose()
@@ -152,7 +160,6 @@ export const Select = <T extends Item>({
       <Popover
         isOpen={isOpen}
         initialFocusRef={inputRef}
-        matchWidth={isPopoverMatchingInputWidth}
         placement="bottom-start"
         offset={[0, 1]}
         isLazy
@@ -217,6 +224,7 @@ export const Select = <T extends Item>({
         <Portal containerRef={parentModalRef}>
           <PopoverContent
             maxH="35vh"
+            maxW="35vw"
             overflowY="auto"
             role="menu"
             w="inherit"

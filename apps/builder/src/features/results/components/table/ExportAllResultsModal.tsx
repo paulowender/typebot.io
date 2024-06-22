@@ -20,13 +20,14 @@ import {
 import { TRPCError } from '@trpc/server'
 import { unparse } from 'papaparse'
 import { useState } from 'react'
-import { parseResultHeader } from '@typebot.io/lib/results/parseResultHeader'
-import { convertResultsToTableData } from '@typebot.io/lib/results/convertResultsToTableData'
-import { parseColumnsOrder } from '@typebot.io/lib/results/parseColumnsOrder'
+import { parseResultHeader } from '@typebot.io/results/parseResultHeader'
+import { convertResultsToTableData } from '@typebot.io/results/convertResultsToTableData'
+import { parseColumnsOrder } from '@typebot.io/results/parseColumnsOrder'
 import { parseUniqueKey } from '@typebot.io/lib/parseUniqueKey'
 import { useResults } from '../../ResultsProvider'
 import { byId, isDefined } from '@typebot.io/lib'
 import { Typebot } from '@typebot.io/schemas'
+import { parseBlockIdVariableIdMap } from '@typebot.io/results/parseBlockIdVariableIdMap'
 
 type Props = {
   isOpen: boolean
@@ -101,7 +102,11 @@ export const ExportAllResultsModal = ({ isOpen, onClose }: Props) => {
         )
       : existingResultHeader
 
-    const dataToUnparse = convertResultsToTableData(results, resultHeader)
+    const dataToUnparse = convertResultsToTableData({
+      results,
+      headerCells: resultHeader,
+      blockIdVariableIdMap: parseBlockIdVariableIdMap(typebot?.groups),
+    })
 
     const headerIds = parseColumnsOrder(
       typebot?.resultsTablePreferences?.columnsOrder,

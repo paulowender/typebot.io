@@ -1,6 +1,6 @@
-import { ZodRawShape } from 'zod'
+import { ZodRawShape, ZodTypeAny } from 'zod'
 import { AuthDefinition, BlockDefinition, ActionDefinition } from './types'
-import { z } from './zod'
+import { ZodLayoutMetadata, z } from './zod'
 
 export const variableStringSchema = z.custom<`{{${string}}}`>((val) =>
   /^{{.+}}$/g.test(val as string)
@@ -10,12 +10,21 @@ export const createAuth = <A extends AuthDefinition>(authDefinition: A) =>
   authDefinition
 
 export const createBlock = <
-  I extends string,
+  Id extends string,
   A extends AuthDefinition,
   O extends z.ZodObject<any>
 >(
-  blockDefinition: BlockDefinition<I, A, O>
-): BlockDefinition<I, A, O> => blockDefinition
+  blockDefinition: BlockDefinition<Id, A, O>
+): BlockDefinition<Id, A, O> => blockDefinition
+
+export const createVersionedBlock = <
+  Blocks extends Record<
+    string,
+    BlockDefinition<string, AuthDefinition, z.ZodObject<any>>
+  >
+>(
+  blocks: Blocks
+): Blocks => blocks
 
 export const createAction = <
   A extends AuthDefinition,
@@ -80,7 +89,7 @@ export const parseBlockCredentials = <
 >(
   blockDefinition: BlockDefinition<I, A, O>
 ) => {
-  if (!blockDefinition.auth) throw new Error('Block has no auth definition')
+  if (!blockDefinition.auth) return null
   return z.object({
     id: z.string(),
     type: z.literal(blockDefinition.id),
@@ -101,18 +110,6 @@ export const option = {
     z.enum(values).optional(),
   number: z.number().or(variableStringSchema).optional(),
   array: <T extends z.ZodTypeAny>(schema: T) => z.array(schema).optional(),
-  keyValueList: z
-    .array(
-      z.object({
-        key: z.string().optional().layout({
-          label: 'Key',
-        }),
-        value: z.string().optional().layout({
-          label: 'Value',
-        }),
-      })
-    )
-    .optional(),
   discriminatedUnion: <
     T extends string,
     J extends [
@@ -128,20 +125,77 @@ export const option = {
       z.object({ [field]: z.undefined() }),
       ...schemas,
     ]),
-  saveResponseArray: <I extends readonly [string, ...string[]]>(items: I) =>
+  saveResponseArray: <I extends readonly [string, ...string[]]>(
+    items: I,
+    layouts?: {
+      item?: ZodLayoutMetadata<ZodTypeAny>
+      variableId?: ZodLayoutMetadata<ZodTypeAny>
+    }
+  ) =>
     z
       .array(
         z.object({
-          item: z.enum(items).optional().layout({
-            placeholder: 'Select a response',
-            defaultValue: items[0],
-          }),
-          variableId: z.string().optional().layout({
-            inputType: 'variableDropdown',
-          }),
+          item: z
+            .enum(items)
+            .optional()
+            .layout({
+              ...(layouts?.item ?? {}),
+              placeholder: 'Select a response',
+              defaultValue: items[0],
+            }),
+          variableId: z
+            .string()
+            .optional()
+            .layout({
+              ...(layouts?.variableId ?? {}),
+              inputType: 'variableDropdown',
+            }),
         })
       )
       .optional(),
+  filter: ({
+    operators = defaultFilterOperators,
+    isJoinerHidden,
+  }: {
+    operators?: readonly [string, ...string[]]
+    isJoinerHidden: (currentObj: Record<string, any>) => boolean
+  }) =>
+    z
+      .object({
+        comparisons: z.array(
+          z.object({
+            input: z.string().optional().layout({ label: 'Enter a field ' }),
+            operator: z
+              .enum(operators)
+              .optional()
+              .layout({ defaultValue: 'Equal to' }),
+            value: z
+              .string()
+              .optional()
+              .layout({ placeholder: 'Enter a value' }),
+          })
+        ),
+        joiner: z.enum(['AND', 'OR']).optional().layout({
+          placeholder: 'Select joiner',
+          isHidden: isJoinerHidden,
+        }),
+      })
+      .optional(),
 }
+
+const defaultFilterOperators = [
+  'Equal to',
+  'Not equal',
+  'Contains',
+  'Does not contain',
+  'Greater than',
+  'Less than',
+  'Is set',
+  'Is empty',
+  'Starts with',
+  'Ends with',
+  'Matches regex',
+  'Does not match regex',
+] as const
 
 export type * from './types'

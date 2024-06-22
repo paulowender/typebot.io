@@ -19,7 +19,7 @@ import { ExecuteIntegrationResponse } from '../../../types'
 import prisma from '@typebot.io/lib/prisma'
 import { parseVariables } from '@typebot.io/variables/parseVariables'
 import { defaultSendEmailOptions } from '@typebot.io/schemas/features/blocks/integrations/sendEmail/constants'
-import { parseAnswers } from '@typebot.io/lib/results/parseAnswers'
+import { parseAnswers } from '@typebot.io/results/parseAnswers'
 
 export const sendEmailSuccessDescription = 'Email successfully sent'
 export const sendEmailErrorDescription = 'Email not sent'
@@ -48,7 +48,7 @@ export const executeSendEmailBlock = async (
   )
   const body = bodyUniqueVariable
     ? stringifyUniqueVariableValueAsHtml(bodyUniqueVariable)
-    : parseVariables(typebot.variables, { isInsideHtml: true })(
+    : parseVariables(typebot.variables, { isInsideHtml: !options?.isBodyCode })(
         options?.body ?? ''
       )
 
