@@ -4,13 +4,13 @@ import {
   ZemanticAiCredentials,
   ZemanticAiResponse,
 } from '@typebot.io/schemas/features/blocks/integrations/zemanticAi'
-import got from 'got'
+import ky from 'ky'
 import { decrypt } from '@typebot.io/lib/api/encryption/decrypt'
 import { byId, isDefined, isEmpty } from '@typebot.io/lib'
-import prisma from '@typebot.io/lib/prisma'
 import { ExecuteIntegrationResponse } from '../../../types'
 import { updateVariablesInSession } from '@typebot.io/variables/updateVariablesInSession'
-import { parseAnswers } from '@typebot.io/lib/results/parseAnswers'
+import { getCredentials } from '../../../queries/getCredentials'
+import { parseAnswers } from '@typebot.io/results/parseAnswers'
 
 const URL = 'https://api.zemantic.ai/v1/search-documents'
 
@@ -19,17 +19,14 @@ export const executeZemanticAiBlock = async (
   block: ZemanticAiBlock
 ): Promise<ExecuteIntegrationResponse> => {
   let newSessionState = state
+  let setVariableHistory = []
 
   if (!block.options?.credentialsId)
     return {
       outgoingEdgeId: block.outgoingEdgeId,
     }
 
-  const credentials = await prisma.credentials.findUnique({
-    where: {
-      id: block.options?.credentialsId,
-    },
-  })
+  const credentials = await getCredentials(block.options.credentialsId)
 
   if (!credentials) {
     return {
@@ -55,7 +52,7 @@ export const executeZemanticAiBlock = async (
   })
 
   try {
-    const res: ZemanticAiResponse = await got
+    const res: ZemanticAiResponse = await ky
       .post(URL, {
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -86,23 +83,33 @@ export const executeZemanticAiBlock = async (
 
     for (const r of block.options.responseMapping || []) {
       const variable = typebot.variables.find(byId(r.variableId))
+      let newVariables = []
       switch (r.valueToExtract) {
         case 'Summary':
           if (isDefined(variable) && !isEmpty(res.summary)) {
-            newSessionState = updateVariablesInSession(newSessionState)([
-              { ...variable, value: res.summary },
-            ])
+            newVariables.push({ ...variable, value: res.summary })
           }
           break
         case 'Results':
           if (isDefined(variable) && res.results.length) {
-            newSessionState = updateVariablesInSession(newSessionState)([
-              { ...variable, value: JSON.stringify(res.results) },
-            ])
+            newVariables.push({
+              ...variable,
+              value: JSON.stringify(res.results),
+            })
           }
           break
         default:
           break
+      }
+      if (newVariables.length > 0) {
+        const { newSetVariableHistory, updatedState } =
+          updateVariablesInSession({
+            newVariables,
+            state: newSessionState,
+            currentBlockId: block.id,
+          })
+        newSessionState = updatedState
+        setVariableHistory.push(...newSetVariableHistory)
       }
     }
   } catch (e) {
@@ -116,6 +123,7 @@ export const executeZemanticAiBlock = async (
           description: 'Could not execute Zemantic AI request',
         },
       ],
+      newSetVariableHistory: setVariableHistory,
     }
   }
 

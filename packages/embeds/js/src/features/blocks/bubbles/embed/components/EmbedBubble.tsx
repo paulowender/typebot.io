@@ -4,10 +4,12 @@ import { createSignal, onCleanup, onMount } from 'solid-js'
 import { clsx } from 'clsx'
 import { EmbedBubbleBlock } from '@typebot.io/schemas'
 import { defaultEmbedBubbleContent } from '@typebot.io/schemas/features/blocks/bubbles/embed/constants'
+import { isNotEmpty } from '@typebot.io/lib/utils'
 
 type Props = {
   content: EmbedBubbleBlock['content']
-  onTransitionEnd: (offsetTop?: number) => void
+  onTransitionEnd?: (ref?: HTMLDivElement) => void
+  onCompleted?: (data?: string) => void
 }
 
 let typingTimeout: NodeJS.Timeout
@@ -16,23 +18,52 @@ export const showAnimationDuration = 400
 
 export const EmbedBubble = (props: Props) => {
   let ref: HTMLDivElement | undefined
-  const [isTyping, setIsTyping] = createSignal(true)
+  const [isTyping, setIsTyping] = createSignal(
+    props.onTransitionEnd ? true : false
+  )
+
+  const handleMessage = (
+    event: MessageEvent<{ name?: string; data?: string }>
+  ) => {
+    if (
+      props.content?.waitForEvent?.isEnabled &&
+      isNotEmpty(event.data.name) &&
+      event.data.name === props.content?.waitForEvent.name
+    ) {
+      props.onCompleted?.(
+        props.content.waitForEvent.saveDataInVariableId && event.data.data
+          ? event.data.data
+          : undefined
+      )
+      window.removeEventListener('message', handleMessage)
+    }
+  }
 
   onMount(() => {
     typingTimeout = setTimeout(() => {
       setIsTyping(false)
+      if (props.content?.waitForEvent?.isEnabled) {
+        window.addEventListener('message', handleMessage)
+      }
       setTimeout(() => {
-        props.onTransitionEnd(ref?.offsetTop)
+        props.onTransitionEnd?.(ref)
       }, showAnimationDuration)
     }, 2000)
   })
 
   onCleanup(() => {
     if (typingTimeout) clearTimeout(typingTimeout)
+    window.removeEventListener('message', handleMessage)
   })
 
   return (
-    <div class="flex flex-col w-full animate-fade-in" ref={ref}>
+    <div
+      class={clsx(
+        'flex flex-col w-full',
+        props.onTransitionEnd ? 'animate-fade-in' : undefined
+      )}
+      ref={ref}
+    >
       <div class="flex w-full items-center">
         <div class="flex relative z-10 items-start typebot-host-bubble w-full max-w-full">
           <div

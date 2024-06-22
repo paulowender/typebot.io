@@ -20,10 +20,12 @@ export const EmailInput = (props: Props) => {
   const handleInput = (inputValue: string) => setInputValue(inputValue)
 
   const checkIfInputIsValid = () =>
-    inputValue() !== '' && inputRef?.reportValidity()
+    inputRef?.value !== '' && inputRef?.reportValidity()
 
   const submit = () => {
-    if (checkIfInputIsValid()) props.onSubmit({ value: inputValue() })
+    if (checkIfInputIsValid())
+      props.onSubmit({ value: inputRef?.value ?? inputValue() })
+    else inputRef?.focus()
   }
 
   const submitWhenEnter = (e: KeyboardEvent) => {
@@ -31,7 +33,7 @@ export const EmailInput = (props: Props) => {
   }
 
   onMount(() => {
-    if (!isMobile() && inputRef) inputRef.focus()
+    if (!isMobile() && inputRef) inputRef.focus({ preventScroll: true })
     window.addEventListener('message', processIncomingEvent)
   })
 
@@ -65,14 +67,8 @@ export const EmailInput = (props: Props) => {
         type="email"
         autocomplete="email"
       />
-      <SendButton
-        type="button"
-        isDisabled={inputValue() === ''}
-        class="my-2 ml-2"
-        on:click={submit}
-      >
-        {props.block.options?.labels?.button ??
-          defaultEmailInputOptions.labels.button}
+      <SendButton type="button" class="my-2 ml-2" on:click={submit}>
+        {props.block.options?.labels?.button}
       </SendButton>
     </div>
   )

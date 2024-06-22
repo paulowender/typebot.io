@@ -1,6 +1,6 @@
 import test, { expect } from '@playwright/test'
-import { createTypebots } from '@typebot.io/lib/playwright/databaseActions'
-import { parseDefaultGroupWithBlock } from '@typebot.io/lib/playwright/databaseHelpers'
+import { createTypebots } from '@typebot.io/playwright/databaseActions'
+import { parseDefaultGroupWithBlock } from '@typebot.io/playwright/databaseHelpers'
 import { createId } from '@paralleldrive/cuid2'
 import { InputBlockType } from '@typebot.io/schemas/features/blocks/inputs/constants'
 
@@ -32,7 +32,7 @@ test('options should work', async ({ page }) => {
 
   await page.click('text=Test')
   await expect(page.locator(`text=Send`)).toBeHidden()
-  await page.getByRole('button', { name: '8' }).click()
+  await page.getByRole('checkbox', { name: '8' }).click()
   await page.locator(`text=Send`).click()
   await expect(page.getByTestId('guest-bubble')).toHaveText('8')
   await page.click('text=Rate from 0 to 10')

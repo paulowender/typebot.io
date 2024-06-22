@@ -10,14 +10,15 @@ import { z } from 'zod'
 import {
   isCustomDomainNotAvailable,
   isPublicIdNotAvailable,
+  sanitizeCustomDomain,
   sanitizeGroups,
   sanitizeSettings,
+  sanitizeVariables,
 } from '../helpers/sanitizers'
 import { isWriteTypebotForbidden } from '../helpers/isWriteTypebotForbidden'
 import { isCloudProdInstance } from '@/helpers/isCloudProdInstance'
 import { Prisma } from '@typebot.io/prisma'
-import { hasProPerks } from '@/features/billing/helpers/hasProPerks'
-import { migrateTypebot } from '@typebot.io/lib/migrations/migrateTypebot'
+import { migrateTypebot } from '@typebot.io/migrations/migrateTypebot'
 
 const typebotUpdateSchemaPick = {
   version: true,
@@ -120,8 +121,7 @@ export const updateTypebot = authenticatedProcedure
 
     if (
       typebot.updatedAt &&
-      new Date(existingTypebot?.updatedAt).getTime() >
-        typebot.updatedAt.getTime()
+      existingTypebot.updatedAt.getTime() > typebot.updatedAt.getTime()
     )
       throw new TRPCError({
         code: 'CONFLICT',
@@ -157,15 +157,9 @@ export const updateTypebot = authenticatedProcedure
         })
     }
 
-    if (
-      typebot.settings?.whatsApp?.isEnabled &&
-      !hasProPerks(existingTypebot.workspace)
-    ) {
-      throw new TRPCError({
-        code: 'BAD_REQUEST',
-        message: 'WhatsApp can be enabled only on a Pro workspaces',
-      })
-    }
+    const groups = typebot.groups
+      ? await sanitizeGroups(existingTypebot.workspace.id)(typebot.groups)
+      : undefined
 
     const newTypebot = await prisma.typebot.update({
       where: {
@@ -177,9 +171,7 @@ export const updateTypebot = authenticatedProcedure
         icon: typebot.icon,
         selectedThemeTemplateId: typebot.selectedThemeTemplateId,
         events: typebot.events ?? undefined,
-        groups: typebot.groups
-          ? await sanitizeGroups(existingTypebot.workspace.id)(typebot.groups)
-          : undefined,
+        groups,
         theme: typebot.theme ? typebot.theme : undefined,
         settings: typebot.settings
           ? sanitizeSettings(
@@ -189,7 +181,13 @@ export const updateTypebot = authenticatedProcedure
             )
           : undefined,
         folderId: typebot.folderId,
-        variables: typebot.variables,
+        variables:
+          typebot.variables && groups
+            ? sanitizeVariables({
+                variables: typebot.variables,
+                groups,
+              })
+            : undefined,
         edges: typebot.edges,
         resultsTablePreferences:
           typebot.resultsTablePreferences === null
@@ -201,11 +199,12 @@ export const updateTypebot = authenticatedProcedure
             : typebot.publicId && isPublicIdValid(typebot.publicId)
             ? typebot.publicId
             : undefined,
-        customDomain:
-          typebot.customDomain === null ? null : typebot.customDomain,
+        customDomain: await sanitizeCustomDomain({
+          customDomain: typebot.customDomain,
+          workspaceId: existingTypebot.workspace.id,
+        }),
         isClosed: typebot.isClosed,
         whatsAppCredentialsId: typebot.whatsAppCredentialsId ?? undefined,
-        updatedAt: typebot.updatedAt,
       },
     })
 

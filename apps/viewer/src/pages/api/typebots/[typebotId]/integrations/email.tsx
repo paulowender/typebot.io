@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   PublicTypebot,
   ResultValues,
@@ -7,7 +8,7 @@ import {
 import { NextApiRequest, NextApiResponse } from 'next'
 import { createTransport, getTestMessageUrl } from 'nodemailer'
 import { isDefined, isEmpty, isNotDefined, omit } from '@typebot.io/lib'
-import { parseAnswers } from '@typebot.io/lib/results/parseAnswers'
+import { parseAnswers } from '@typebot.io/results/parseAnswers'
 import { methodNotAllowed, initMiddleware } from '@typebot.io/lib/api'
 import { decrypt } from '@typebot.io/lib/api/encryption/decrypt'
 
@@ -203,7 +204,7 @@ const getEmailBody = async ({
   })) as unknown as PublicTypebot
   if (!typebot) return
   const answers = parseAnswers({
-    answers: resultValues.answers.map((answer) => ({
+    answers: (resultValues as any).answers.map((answer: any) => ({
       key:
         (answer.variableId
           ? typebot.variables.find(

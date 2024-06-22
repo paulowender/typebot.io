@@ -2,7 +2,7 @@ import { createAction, option } from '@typebot.io/forge'
 import { auth } from '../auth'
 import { baseUrl } from '../constants'
 import { ModelsResponse, VoicesResponse } from '../type'
-import got, { HTTPError } from 'got'
+import got, { HTTPError } from 'ky'
 import { uploadFileToBucket } from '@typebot.io/lib/s3/uploadFileToBucket'
 import { createId } from '@typebot.io/lib/createId'
 
@@ -17,12 +17,12 @@ export const convertTextToSpeech = createAction({
     }),
     voiceId: option.string.layout({
       fetcher: 'fetchVoices',
-      label: 'Voice ID',
+      label: 'Voice',
       placeholder: 'Select a voice',
     }),
     modelId: option.string.layout({
       fetcher: 'fetchModels',
-      label: 'Model ID',
+      label: 'Model',
       placeholder: 'Select a model',
       defaultValue: 'eleven_monolingual_v1',
     }),
@@ -38,6 +38,8 @@ export const convertTextToSpeech = createAction({
     {
       id: 'fetchVoices',
       fetch: async ({ credentials }) => {
+        if (!credentials?.apiKey) return []
+
         const response = await got
           .get(baseUrl + '/v1/voices', {
             headers: {
@@ -56,6 +58,8 @@ export const convertTextToSpeech = createAction({
     {
       id: 'fetchModels',
       fetch: async ({ credentials }) => {
+        if (!credentials?.apiKey) return []
+
         const response = await got
           .get(baseUrl + '/v1/models', {
             headers: {
@@ -64,10 +68,12 @@ export const convertTextToSpeech = createAction({
           })
           .json<ModelsResponse>()
 
-        return response.map((model) => ({
-          value: model.model_id,
-          label: model.name,
-        }))
+        return response
+          .filter((model) => model.can_do_text_to_speech)
+          .map((model) => ({
+            value: model.model_id,
+            label: model.name,
+          }))
       },
       dependencies: [],
     },
@@ -91,10 +97,10 @@ export const convertTextToSpeech = createAction({
               text: options.text,
             },
           })
-          .buffer()
+          .arrayBuffer()
 
         const url = await uploadFileToBucket({
-          file: response,
+          file: Buffer.from(response),
           key: `tmp/elevenlabs/audio/${createId() + createId()}.mp3`,
           mimeType: 'audio/mpeg',
         })
@@ -105,7 +111,7 @@ export const convertTextToSpeech = createAction({
           return logs.add({
             status: 'error',
             description: err.message,
-            details: err.response.body,
+            details: await err.response.text(),
           })
         }
       }

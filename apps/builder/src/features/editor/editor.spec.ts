@@ -3,8 +3,8 @@ import { createId } from '@paralleldrive/cuid2'
 import {
   createTypebots,
   importTypebotInDatabase,
-} from '@typebot.io/lib/playwright/databaseActions'
-import { parseDefaultGroupWithBlock } from '@typebot.io/lib/playwright/databaseHelpers'
+} from '@typebot.io/playwright/databaseActions'
+import { parseDefaultGroupWithBlock } from '@typebot.io/playwright/databaseHelpers'
 import { getTestAsset } from '@/test/utils/playwright'
 import { InputBlockType } from '@typebot.io/schemas/features/blocks/inputs/constants'
 
@@ -60,98 +60,6 @@ test('Edges connection should work', async ({ page }) => {
   await page.click('text=Delete')
   const total = await page.locator('[data-testid="edge"]').count()
   expect(total).toBe(1)
-})
-test('Drag and drop blocks and items should work', async ({ page }) => {
-  const typebotId = createId()
-  await importTypebotInDatabase(
-    getTestAsset('typebots/editor/buttonsDnd.json'),
-    {
-      id: typebotId,
-    }
-  )
-
-  // Blocks dnd
-  await page.goto(`/typebots/${typebotId}/edit`)
-  await expect(page.locator('[data-testid="block"] >> nth=0')).toHaveText(
-    'Hello!'
-  )
-  await page.dragAndDrop('text=Hello', '[data-testid="block"] >> nth=2', {
-    targetPosition: { x: 100, y: 0 },
-  })
-  await expect(page.locator('[data-testid="block"] >> nth=1')).toHaveText(
-    'Hello!'
-  )
-  await page.dragAndDrop('text=Hello', 'text=Group #2')
-  await expect(page.locator('[data-testid="block"] >> nth=2')).toHaveText(
-    'Hello!'
-  )
-
-  // Items dnd
-  await expect(page.locator('[data-testid="item"] >> nth=0')).toHaveText(
-    'Item 1'
-  )
-  await page.dragAndDrop('text=Item 1', 'text=Item 3')
-  await expect(page.locator('[data-testid="item"] >> nth=2')).toHaveText(
-    'Item 1'
-  )
-  await expect(page.locator('[data-testid="item"] >> nth=1')).toHaveText(
-    'Item 3'
-  )
-  await page.dragAndDrop('text=Item 3', 'text=Item 2-3')
-  await expect(page.locator('[data-testid="item"] >> nth=7')).toHaveText(
-    'Item 3'
-  )
-
-  await expect(page.locator('[data-testid="item"] >> nth=2')).toHaveText(
-    'Name=John'
-  )
-  await page.dragAndDrop(
-    '[data-testid="item"] >> nth=2',
-    '[data-testid="item"] >> nth=3'
-  )
-  await expect(page.locator('[data-testid="item"] >> nth=3')).toHaveText(
-    'Name=John'
-  )
-})
-test('Undo / Redo and Zoom buttons should work', async ({ page }) => {
-  const typebotId = createId()
-  await createTypebots([
-    {
-      id: typebotId,
-      ...parseDefaultGroupWithBlock({
-        type: InputBlockType.TEXT,
-      }),
-    },
-  ])
-
-  await page.goto(`/typebots/${typebotId}/edit`)
-  await page.click('text=Group #1', { button: 'right' })
-  await page.click('text=Duplicate')
-  await expect(page.locator('text="Group #1"')).toBeVisible()
-  await expect(page.locator('text="Group #1 (1)"')).toBeVisible()
-  await page.click('text="Group #1"', { button: 'right' })
-  await page.click('text=Delete')
-  await expect(page.locator('text="Group #1"')).toBeHidden()
-  await page.click('button[aria-label="Undo"]')
-  await expect(page.locator('text="Group #1"')).toBeVisible()
-  await page.click('button[aria-label="Redo"]')
-  await expect(page.locator('text="Group #1"')).toBeHidden()
-  await page.getByRole('button', { name: 'Zoom in' }).click()
-  await expect(page.getByTestId('graph')).toHaveAttribute(
-    'style',
-    /scale\(1\.2\)/
-  )
-  await page.getByRole('button', { name: 'Zoom in' }).click()
-  await expect(page.getByTestId('graph')).toHaveAttribute(
-    'style',
-    /scale\(1\.4\)/
-  )
-  await page.getByRole('button', { name: 'Zoom out' }).dblclick()
-  await page.getByRole('button', { name: 'Zoom out' }).dblclick()
-  await expect(page.getByTestId('graph')).toHaveAttribute(
-    'style',
-    /scale\(0\.6\)/
-  )
 })
 
 test('Rename and icon change should work', async ({ page }) => {

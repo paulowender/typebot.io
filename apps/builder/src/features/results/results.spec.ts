@@ -7,7 +7,7 @@ import { parse } from 'papaparse'
 import {
   importTypebotInDatabase,
   injectFakeResults,
-} from '@typebot.io/lib/playwright/databaseActions'
+} from '@typebot.io/playwright/databaseActions'
 
 const typebotId = createId()
 
@@ -33,6 +33,7 @@ test('table features should work', async ({ page }) => {
     await expect(page.locator('text=Additional information')).toBeVisible()
     await expect(page.locator('text=utm_source')).toBeVisible()
     await expect(page.locator('text=utm_userid')).toBeVisible()
+    await expect(page.locator('text=utm_session')).toBeHidden()
   })
 
   await test.step('Resize columns', async () => {
