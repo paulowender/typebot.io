@@ -11061,15 +11061,7 @@
               "type": {
                 "type": "string",
                 "enum": [
-                  "openai",
-                  "zemantic-ai",
-                  "cal-com",
-                  "chat-node",
-                  "qr-code",
-                  "dify-ai",
-                  "mistral",
-                  "elevenlabs",
-                  "codechat"
+                  "elevenlabs"
                 ]
               },
               "options": {
