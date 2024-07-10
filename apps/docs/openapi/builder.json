@@ -236,6 +236,9 @@
                                                   },
                                                   "maxWidth": {
                                                     "type": "string"
+                                                  },
+                                                  "queryParamsStr": {
+                                                    "type": "string"
                                                   }
                                                 }
                                               }
@@ -4572,6 +4575,9 @@
                                               },
                                               "maxWidth": {
                                                 "type": "string"
+                                              },
+                                              "queryParamsStr": {
+                                                "type": "string"
                                               }
                                             }
                                           }
@@ -8045,6 +8051,9 @@
                                               },
                                               "maxWidth": {
                                                 "type": "string"
+                                              },
+                                              "queryParamsStr": {
+                                                "type": "string"
                                               }
                                             }
                                           }
@@ -11148,6 +11157,12 @@
                                 },
                                 "content": {
                                   "type": "string"
+                                },
+                                "attachedFileUrls": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
                                 }
                               },
                               "required": [
@@ -11443,6 +11458,12 @@
                               },
                               "content": {
                                 "type": "string"
+                              },
+                              "attachedFileUrls": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
                               }
                             },
                             "required": [
@@ -14655,6 +14676,9 @@
                                               "properties": {
                                                 "id": {
                                                   "type": "string"
+                                                },
+                                                "caption": {
+                                                  "type": "string"
                                                 }
                                               },
                                               "required": [
@@ -14688,6 +14712,9 @@
                                               "type": "object",
                                               "properties": {
                                                 "id": {
+                                                  "type": "string"
+                                                },
+                                                "caption": {
                                                   "type": "string"
                                                 }
                                               },
@@ -14756,6 +14783,9 @@
                                               "type": "object",
                                               "properties": {
                                                 "id": {
+                                                  "type": "string"
+                                                },
+                                                "caption": {
                                                   "type": "string"
                                                 }
                                               },
@@ -15596,6 +15626,25 @@
               },
               "isLong": {
                 "type": "boolean"
+              },
+              "attachments": {
+                "type": "object",
+                "properties": {
+                  "isEnabled": {
+                    "type": "boolean"
+                  },
+                  "saveVariableId": {
+                    "type": "string"
+                  },
+                  "visibility": {
+                    "type": "string",
+                    "enum": [
+                      "Auto",
+                      "Public",
+                      "Private"
+                    ]
+                  }
+                }
               }
             }
           }
@@ -16559,6 +16608,9 @@
                     "type": "string"
                   },
                   "maxWidth": {
+                    "type": "string"
+                  },
+                  "queryParamsStr": {
                     "type": "string"
                   }
                 }
@@ -22872,6 +22924,9 @@
                               },
                               "maxWidth": {
                                 "type": "string"
+                              },
+                              "queryParamsStr": {
+                                "type": "string"
                               }
                             }
                           }
@@ -25713,6 +25768,9 @@
                                 "type": "string"
                               },
                               "maxWidth": {
+                                "type": "string"
+                              },
+                              "queryParamsStr": {
                                 "type": "string"
                               }
                             }
